@@ -589,6 +589,8 @@ if (nrow(dm) < 50L || .n_init < 50L || !.exp_ok) {
                     length(unique(mt$moderator))))
     for (k in which(mt$purpose == "A_SE")) log_msg(sprintf("  A_SE × %-14s F=%.2f p=%.3g Holm p=%.3g", mt$moderator[k], mt$overall_F[k], mt$overall_p[k], mt$overall_p_holm[k]))
   }
+  # x-axis ticks: age panels at 20, 40, 60, 80 years; LSNS panels (0-15) with the default ticks
+  .x_breaks <- function(lim) if (max(lim) > 20) seq(20, 80, by = 20) else scales::breaks_extended()(lim)
   if (length(sp_rows) && requireNamespace("ggplot2", quietly = TRUE)) {
     suppressPackageStartupMessages(library(ggplot2))
     sp <- do.call(rbind, sp_rows)
@@ -603,7 +605,8 @@ if (nrow(dm) < 50L || .n_init < 50L || !.exp_ok) {
            subtitle = "Adjusted marginal association (95% CI) per one unit of the composite, by AI-use purpose",
            x = "Moderator value", y = "Adjusted marginal association with loneliness",
            colour = "AI-use purpose", fill = "AI-use purpose") +
-      theme_bw(base_size = 10) + theme(legend.position = "bottom")
+      theme_bw(base_size = 10) + theme(legend.position = "bottom") +
+      scale_x_continuous(breaks = .x_breaks)
     # moderators TOP→BOTTOM (rows), purposes horizontal (cols); per-moderator x via independent scales.
     if (requireNamespace("ggh4x", quietly = TRUE)) { suppressPackageStartupMessages(library(ggh4x))
       g <- g + ggh4x::facet_grid2(moderator ~ purpose, scales = "free_x", independent = "x")
@@ -628,7 +631,8 @@ if (nrow(dm) < 50L || .n_init < 50L || !.exp_ok) {
       labs(title = "Predicted loneliness across continuous moderators, by AI-use level",
            subtitle = "Predicted UCLA-3 (95% CI) at no use / low / medium / high; other purposes + confounders at means",
            x = "Moderator value", y = "Predicted loneliness (UCLA-3, 3–12)") +
-      theme_bw(base_size = 10) + theme(legend.position = "bottom")
+      theme_bw(base_size = 10) + theme(legend.position = "bottom") +
+      scale_x_continuous(breaks = .x_breaks)
     # moderators TOP→BOTTOM (rows), purposes horizontal (cols); per-moderator x via independent scales.
     if (requireNamespace("ggh4x", quietly = TRUE)) { suppressPackageStartupMessages(library(ggh4x))
       gp <- gp + ggh4x::facet_grid2(moderator ~ purpose, scales = "free_x", independent = "x")
