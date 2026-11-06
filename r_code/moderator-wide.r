@@ -168,6 +168,8 @@ run_modwide <- function(d, mcol, cv) {
   inter <- list(); strat <- list(); contr <- list()
   for (p in pur) {
     Ac <- paste0(p, "_c")
+    # respondents with any use of purpose p (composite > 0) in each stratum: the exposed count behind each slope
+    n_exp_by <- tapply(d[[paste0(p, "_continuous")]] > 0, d[[mcol]], sum, na.rm = TRUE)
     rhs_red <- paste(c(pc, mcol, paste0(setdiff(pc, Ac), ":", mcol), cv), collapse = " + ")
     fit_red <- lm(as.formula(paste0(OUTCOME, " ~ ", rhs_red)), data = d)
     aw <- anova(fit_red, fit)
@@ -178,7 +180,7 @@ run_modwide <- function(d, mcol, cv) {
       if (L != ref) { t <- paste0(Ac, ":", mcol, L); if (t %in% nm) cvec[nm == t] <- 1 }
       sl <- sum(cvec * b); se <- sqrt(max(0, as.numeric(t(cvec) %*% V %*% cvec))); z <- if (se>0) sl/se else NA_real_
       strat[[length(strat)+1L]] <- data.frame(moderator = mcol, purpose = p, level = L, n = as.integer(n_by[[L]]),
-        slope = sl, se = se, ci_lo = sl-1.96*se, ci_hi = sl+1.96*se, z = z,
+        n_exposed = as.integer(n_exp_by[[L]]), slope = sl, se = se, ci_lo = sl-1.96*se, ci_hi = sl+1.96*se, z = z,
         p_value = if (is.finite(z)) 2*pnorm(-abs(z)) else NA_real_, stringsAsFactors = FALSE)
       # per-category EFFECT-MODIFICATION contrast: γ = A_p_c:M[L] interaction coef = (slope at L) − (slope at ref).
       # Decomposes the joint block-Wald F into per-non-reference-level moderation tests (own SE/z/p).
@@ -443,7 +445,7 @@ if (nrow(dm) < 50L || .n_init < 50L || !.exp_ok) {
   log_msg("=== §2: Spline marginal associations of A_SE/A_PC/A_DI across continuous moderators ===")
   cont_mods <- list(   # the three continuous moderators (sex is binary and stays in §1).
     # The AME curve is evaluated over the full scale of the LSNS-6 subscales (0-15) and over the
-    # observed age range.
+    # observed age range from 16 (the lower bound of the JACSIS sampling frame) upwards.
     list(lab="LSNS friends",         var="baseline_lsns6_friends",  c_var="baseline_lsns6_friends_c", range = c(0, 15)),
     list(lab="LSNS family",          var="baseline_lsns6_family",   c_var="baseline_lsns6_family_c",  range = c(0, 15)),
     list(lab="Age (years)",          var="age_2024",                c_var="age_2024_c",               range = NULL))
@@ -458,6 +460,7 @@ if (nrow(dm) < 50L || .n_init < 50L || !.exp_ok) {
     d2$Cmat <- as.matrix(d2[, cv, drop = FALSE])
     meanM <- mean(d2[[CM$var]], na.rm = TRUE)
     .rng <- if (is.null(CM$range)) range(d2[[CM$var]], na.rm = TRUE) else CM$range
+    if (CM$var == "age_2024") .rng[1] <- max(.rng[1], 16)   # the JACSIS sampling frame starts at age 16; the curve is not drawn below it
     wv <- seq(.rng[1] - meanM, .rng[2] - meanM, length.out = 61L)
     qprobs <- c(0.10, 0.25, 0.50, 0.75, 0.90)
     qv     <- unname(quantile(d2[[CM$c_var]], qprobs, na.rm = TRUE))

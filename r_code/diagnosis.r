@@ -22,7 +22,8 @@
 #   D12 Exposure distribution     — share of zeros; any social/emotional use
 #   D13 Characteristics by history— whole two-wave panel by Q37S1 code (Supplementary Table 4)
 #   D14 Attrition                 — retained vs lost 2024 respondents; retention model (Supplementary Table 5)
-#   D15 Baseline dates / overlap  — completion dates; overlap with the earlier analytic sample
+#   D15 Dates / ages / overlap    — baseline and follow-up completion dates (follow-ups completed in 2026);
+#                                   age range and respondents younger than 18; overlap with the earlier analytic sample
 #
 # Produces flags_<ts>.md (rejected/warned items) for triage.
 # Outputs → output/ai_mod/diagnosis/. Files: 0X_*.csv + flags_<ts>.md + diagnosis_<ts>.log.
@@ -62,6 +63,7 @@ REF5_LIST_PATH     <- Sys.getenv("REF5_LIST_PATH", unset = "");      if (!nzchar
 DATA_2024_ALL_PATH <- .norm(DATA_2024_ALL_PATH); REF5_LIST_PATH <- .norm(REF5_LIST_PATH)
 ID_COL <- "Monitor_ID"; REF5_ID_COL <- "RI_ID_2024"
 BASELINE_TS_COL <- "回答完了日時_2024"   # 回答完了日時_2024 (UTC, ISO 8601)
+FOLLOWUP_TS_COL <- "回答完了日時_2025"   # 回答完了日時_2025 (UTC, ISO 8601): follow-up (2025 wave) completion timestamp
 OUTCOME <- "Y_ucla3"
 OUT_BASE <- file.path(.proj_root, "output", "ai_mod", "diagnosis")
 dir.create(OUT_BASE, recursive = TRUE, showWarnings = FALSE)
@@ -147,7 +149,7 @@ ai_start <- .safe(df, "Q37S1_2025")
 df$Q37S1_2025 <- ai_start
 df$ai_init <- as.integer(ai_start %in% c(5L, 6L))
 # use-history label (Q37S1_2025 codes) for the descriptive table by history
-df$ai_start_label <- factor(ai_start, levels = 1:6, labels = c("Never used", "Past user, not current", "Started 2022-2023", "Started 2024", "Started Jan-Jun 2025", "Started Jul-Dec 2025"))
+df$ai_start_label <- factor(ai_start, levels = 1:6, labels = c("Never used", "Past user, not current", "Started 2022-2023", "Started 2024", "Started Jan-Jun 2025", "Started Jul 2025 or later"))
 df$ai_current_user <- as.integer(ai_start %in% 3:6)
 # baseline completion date (JST) and flag for baselines on/after 1 Jan 2025
 .ts_col <- if (BASELINE_TS_COL %in% names(df)) BASELINE_TS_COL else grep("完了日時.*2024", names(df), value = TRUE, useBytes = TRUE)[1]
@@ -162,6 +164,14 @@ if (!is.na(.ts_col)) { .ts <- .parse_ts(df[[.ts_col]]); df$baseline_date <- as.D
 df$baseline_after_2025 <- as.integer(!is.na(df$baseline_date) & df$baseline_date >= as.Date("2025-01-01"))
 log_msg(sprintf("baseline timestamp column: %s; %d of %d rows dated; %d (%.1f%%) completed on/after 2025-01-01 JST",
                 if (is.na(.ts_col)) "NOT FOUND" else .ts_col, sum(!is.na(df$baseline_date)), nrow(df), sum(df$baseline_after_2025), 100 * mean(df$baseline_after_2025)))
+# follow-up (2025 wave) completion date (JST) and flag for follow-ups completed in 2026: the initiation item's last
+# option ("started July 2025 or later") is open-ended, so respondents who completed the 2025 wave in January or
+# February 2026 could have begun use in 2026 (D15).
+.ts_col25 <- if (FOLLOWUP_TS_COL %in% names(df)) FOLLOWUP_TS_COL else grep("完了日時.*2025", names(df), value = TRUE, useBytes = TRUE)[1]
+if (!is.na(.ts_col25)) { .ts25 <- .parse_ts(df[[.ts_col25]]); df$followup_date <- as.Date(format(.ts25, tz = "Asia/Tokyo", "%Y-%m-%d")) } else df$followup_date <- as.Date(NA)
+df$followup_in_2026 <- as.integer(!is.na(df$followup_date) & df$followup_date >= as.Date("2026-01-01"))
+log_msg(sprintf("follow-up timestamp column: %s; %d of %d rows dated; %d (%.1f%%) completed on/after 2026-01-01 JST",
+                if (is.na(.ts_col25)) "NOT FOUND" else .ts_col25, sum(!is.na(df$followup_date)), nrow(df), sum(df$followup_in_2026), 100 * mean(df$followup_in_2026)))
 
 # 3 A_purpose composites; non-initiators = 0 (= moderator-wide.r convention)
 for (a in A_VARS) {
@@ -994,14 +1004,37 @@ if (!file.exists(DATA_2024_ALL_PATH)) {
 # ============================================================================
 # Diagnostic 15 — baseline completion dates and overlap with the earlier analytic sample
 # ============================================================================
-log_msg("\n[15/15] Baseline completion dates and overlap with the earlier analytic sample")
+log_msg("\n[15/15] Completion dates (baseline and follow-up), age range, and overlap with the earlier analytic sample")
 if (any(!is.na(df$baseline_date))) {
   .bd <- function(d, label) data.frame(sample = label, n = sum(!is.na(d$baseline_date)), first_date = as.character(min(d$baseline_date, na.rm = TRUE)),
     median_date = as.character(median(d$baseline_date, na.rm = TRUE)), last_date = as.character(max(d$baseline_date, na.rm = TRUE)),
     n_on_or_after_2025_01_01 = sum(d$baseline_after_2025), pct = round(100 * mean(d$baseline_after_2025), 1), stringsAsFactors = FALSE)
   write_csv_out(rbind(.bd(df, "two-wave panel"), .bd(dm, "analytic cohort"), .bd(dm[dm$ai_init == 1L, ], "initiators"),
-                      .bd(dm[dm$Q37S1_2025 == 5L, ], "initiators Jan-Jun 2025"), .bd(dm[dm$Q37S1_2025 == 6L, ], "initiators Jul-Dec 2025"), .bd(dm[dm$ai_init == 0L, ], "never-users")), "15_baseline_dates")
+                      .bd(dm[dm$Q37S1_2025 == 5L, ], "initiators (started Jan-Jun 2025)"), .bd(dm[dm$Q37S1_2025 == 6L, ], "initiators (started Jul 2025 or later)"), .bd(dm[dm$ai_init == 0L, ], "never-users")), "15_baseline_dates")
 } else log_msg("  baseline dates SKIP: no completion timestamp column")
+# follow-up (2025 wave) completion dates: by group, with the number completing in January-February 2026 (the
+# initiation item cannot separate initiation in 2026 from initiation in July-December 2025 for these respondents)
+if (any(!is.na(df$followup_date))) {
+  .fd <- function(d, label) data.frame(sample = label, n = sum(!is.na(d$followup_date)), first_date = as.character(min(d$followup_date, na.rm = TRUE)),
+    median_date = as.character(median(d$followup_date, na.rm = TRUE)), last_date = as.character(max(d$followup_date, na.rm = TRUE)),
+    n_in_2026 = sum(d$followup_in_2026), pct = round(100 * mean(d$followup_in_2026), 1), stringsAsFactors = FALSE)
+  write_csv_out(rbind(.fd(df, "two-wave panel"), .fd(dm, "analytic cohort"), .fd(dm[dm$ai_init == 1L, ], "initiators"),
+                      .fd(dm[dm$Q37S1_2025 == 5L, ], "initiators (started Jan-Jun 2025)"), .fd(dm[dm$Q37S1_2025 == 6L, ], "initiators (started Jul 2025 or later)"),
+                      .fd(dm[dm$ai_init == 0L, ], "never-users"), .fd(dm[dm$A_SE_continuous > 0, ], "any social/emotional use")), "15_followup_dates")
+  .fm <- as.data.frame(table(month = format(dm$followup_date, "%Y-%m"), group = ifelse(dm$ai_init == 1L, "initiators", "never-users")), stringsAsFactors = FALSE)
+  write_csv_out(.fm[.fm$Freq > 0, ], "15_followup_dates_by_month")
+  log_msg(sprintf("  follow-up completed in 2026: %d of %d analytic-cohort respondents (%.1f%%); %d initiators, %d never-users",
+                  sum(dm$followup_in_2026), nrow(dm), 100 * mean(dm$followup_in_2026), sum(dm$followup_in_2026 & dm$ai_init == 1L), sum(dm$followup_in_2026 & dm$ai_init == 0L)))
+} else log_msg("  follow-up dates SKIP: no 2025 completion timestamp column")
+# age range of the analytic cohort and respondents younger than 18 (single years), by group
+.ag <- function(d, label) { a <- d$age_2024; u <- a[is.finite(a) & a < 18]
+  data.frame(sample = label, n = sum(is.finite(a)), age_min = min(a, na.rm = TRUE), age_max = max(a, na.rm = TRUE),
+             n_under_18 = length(u), pct_under_18 = round(100 * length(u) / sum(is.finite(a)), 2),
+             ages_under_18 = paste(sprintf("%d:%d", as.integer(names(table(u))), as.integer(table(u))), collapse = "; "), stringsAsFactors = FALSE) }
+write_csv_out(rbind(.ag(dm, "analytic cohort"), .ag(dm[dm$ai_init == 1L, ], "initiators"), .ag(dm[dm$ai_init == 0L, ], "never-users"),
+                    .ag(dm[dm$A_SE_continuous > 0, ], "any social/emotional use"), .ag(df, "two-wave panel")), "15_age_range")
+log_msg(sprintf("  age range (analytic cohort): %g-%g; %d respondents younger than 18 (%s)", min(dm$age_2024, na.rm = TRUE), max(dm$age_2024, na.rm = TRUE),
+                sum(dm$age_2024 < 18, na.rm = TRUE), .ag(dm, "x")$ages_under_18))
 if (file.exists(REF5_LIST_PATH) && REF5_ID_COL %in% names(df)) {
   ref5 <- readr::read_csv(REF5_LIST_PATH, show_col_types = FALSE, col_types = readr::cols(.default = "c"))
   if (REF5_ID_COL %in% names(ref5)) { ids <- unique(as.character(ref5[[REF5_ID_COL]])); in5 <- as.character(dm[[REF5_ID_COL]]) %in% ids

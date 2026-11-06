@@ -74,7 +74,8 @@ to `mwinit_package_versions.csv`.
 r_code/
   moderator-wide.r       # main engine: primary main effect + moderation scans + sensitivities + E-values
   diagnosis.r            # pre-analytic diagnostics (cohort flow, missingness, alpha, VIF, EFA, CFA holdout,
-                         #   exposure distribution, characteristics by use history, attrition, baseline dates)
+                         #   exposure distribution, characteristics by use history, attrition,
+                         #   completion dates, age range)
   manuscript_tables.r    # manuscript tables + figures (pure downstream CSV reader)
   data/                  # no data shipped; place jacsis_2wave2425.csv (+ optional files) here
 CODEBOOK.md              # variable definitions, framework, engine
@@ -118,7 +119,7 @@ Written under `output/ai_mod/`:
   overlap-weighting diagnostics figures. Delete a previous `output/` before a final run so that no
   stale file remains.
 - `diagnosis/` — the 15 diagnostics, EFA (Pearson and polychoric) loadings / fit indices / factor
-  correlations, CFA holdout, attrition comparison, baseline dates.
+  correlations, CFA holdout, attrition comparison, baseline and follow-up completion dates, age range.
 - `manuscript/{tables,figures}/` — Table 1–2 + Supplementary Tables 1–14 + Figures 1–2 +
   Supplementary Figures 2–6 (Supplementary Figure 1, the flow chart, is drawn separately from
   `sup_figure1_flow_counts.csv`). `manuscript/README.md` maps the files to the manuscript exhibits.

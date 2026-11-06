@@ -53,7 +53,7 @@ Engine: all moderator-wide sections fit **one joint model per moderator** with a
    C: 39 baseline-2024 covariates (incl. baseline_ucla3)            ← confounders
 ```
 
-**Temporal design (two-wave panel, lagged-outcome specification)**: 2024 baseline → AI use/initiation 2024→2025 → 2025 loneliness. Baseline-loneliness-adjusted (lagged-outcome). Purpose-frequency and loneliness are both measured at the 2025 wave, so the design does not establish the temporal order of use and loneliness and reverse causation cannot be excluded; the initiation contrast and the baseline-loneliness adjustment are the design's anchors. Respondents whose baseline was completed on or after 1 January 2025 (`baseline_after_2025`, from the completion timestamp) are counted and excluded in SENS6.
+**Temporal design (two-wave panel, lagged-outcome specification)**: 2024 baseline → AI use/initiation 2024→2025 → 2025 loneliness. Baseline-loneliness-adjusted (lagged-outcome). Purpose-frequency and loneliness are both measured at the 2025 wave, so the design does not establish the temporal order of use and loneliness and reverse causation cannot be excluded; the initiation contrast and the baseline-loneliness adjustment are the design's anchors. Respondents whose baseline was completed on or after 1 January 2025 (`baseline_after_2025`, from the completion timestamp) are counted and excluded in SENS6. Respondents whose follow-up (2025 wave) was completed on or after 1 January 2026 (`followup_in_2026`, from `回答完了日時_2025`; diagnosis.r D15) are counted, because for them the open-ended last initiation option cannot separate initiation in late 2025 from initiation in 2026.
 
 ### 0.3 Output file-naming convention
 
@@ -74,7 +74,7 @@ The **Component** column gives the §6 home and **→** the manuscript exhibit (
 | `mwinit_overall_pre2025_baseline.csv` + `mwinit_baseline_timing.csv` | SENS6 (6.6) | baselines completed before 1 Jan 2025 → **Sup Table 7** |
 | `mwinit_evalues.csv` | E-values (6.6) | E-values for the primary estimate and its CI limit → **Sup Table 9** |
 | `mwinit_forest_<OUTCOME>.{png,pdf}` | Categorical scan (6.2) | grouped forest of per-unit β (moderators = header rows; purpose = columns) → **Figure 2** (all 3 purposes) |
-| `mwinit_stratified.csv` | Categorical scan (6.2) | per-stratum slope (per unit) + delta-SE + 95% CI (+ standardized β for reference) → **Sup Table 12** (`_subgroup_primary`) |
+| `mwinit_stratified.csv` | Categorical scan (6.2) | per-stratum slope (per unit) + delta-SE + 95% CI (+ standardized β for reference), with `n` (stratum size) and `n_exposed` (respondents in the stratum with any use of the purpose, composite > 0) → **Sup Table 12** (`_subgroup_primary`) |
 | `mwinit_interaction.csv` | Categorical scan (6.2) | F test of the moderator's product terms per moderator × purpose with raw p, Holm p (4 per purpose) and BH q → **Sup Tables 10 and 12** (`_primary_omnibus_tests`) |
 | `mwinit_interaction_contrasts.csv` | Categorical scan (6.2) | per-category effect-modification contrast γ (the A_p×M[level] **product term**) + own SE/z/raw p, with the moderator test p / Holm p attached → **Sup Table 12** (`_primary_contrasts`) |
 | `mwinit_lsns_threshold_sweep.csv` | Categorical scan (6.2) | stratified slopes and interaction p at LSNS-6 thresholds <3 / <6 / <9 / <12 (effect-modification sensitivity analysis 3) → **Sup Table 13** |
@@ -93,10 +93,10 @@ The **Component** column gives the §6 home and **→** the manuscript exhibit (
 | | |
 |---|---|
 | Filter | `Q37S1_2025 ∈ {1, 5, 6}` — never-users (1) + 2025 initiators (5,6). Pre-2025 starters (2–4) excluded. |
-| `Q37S1_2025` codes | 1=never used; 2=used before, not now; 3=started Nov 2022–Dec 2023; 4=started Jan–Dec 2024; 5=started Jan–Jun 2025; 6=started Jul–Dec 2025. Codes 2/3/4 excluded for clean temporal ordering. |
+| `Q37S1_2025` codes | 1=never used; 2=used before, not now; 3=started Nov 2022–Dec 2023; 4=started Jan–Dec 2024; 5=started January 2025 or later (taken as January–June 2025, because option 6 covers July 2025 or later); 6=started July 2025 or later (open-ended: a respondent who completed the 2025 wave in January–February 2026 and began use in 2026 is also coded 6). Codes 2/3/4 excluded for clean temporal ordering. |
 | Real-data flow | 12,194 raw → 9,411 cohort = **2,490 initiated + 6,921 never** → 9,411 complete-case (no missingness on Y + 3 A + 39 C). |
 | Assertion | `stopifnot(nrow(dm) >= 3000L)`; per-section guards on the number of users and non-degenerate exposure. |
-| `ai_init` | `as.integer(Q37S1_2025 ∈ {5,6})` — 1 = initiated in 2025, 0 = never-user. |
+| `ai_init` | `as.integer(Q37S1_2025 ∈ {5,6})` — 1 = initiated after the 2024 baseline (January 2025 or later), 0 = never-user. |
 | `ai_start_label`, `ai_current_user` | descriptive labels of the Q37S1_2025 codes (diagnosis.r D13; Sup Table 4) |
 | `baseline_date`, `baseline_after_2025` | baseline completion date (from `回答完了日時_2024`, UTC → JST) and indicator for on/after 2025-01-01 (SENS6; Sup Table 7) |
 | Optional inputs | `jacsis_2024_all.csv` (all valid 2024 respondents; `Monitor_ID` link; attrition D14 + SENS5) and `df_ref5_list.csv` (`RI_ID_2024` of the earlier analytic sample; overlap D15) |
@@ -363,7 +363,7 @@ For each of the 4 categorical moderators, fit the joint model (6.0); then **per 
 
 3. **Test of the moderator (the reported effect-modification test)** — the nested-F test of all product terms of purpose p with M (`anova(fit_red, fit)`; 2 df for age, 1 df otherwise), written to `mwinit_interaction.csv` with raw p, **Holm-adjusted p over the 4 moderators within the purpose** (`p_holm`) and BH q (for reference). For a binary M this p equals the single contrast's p.
 
-`mwinit_stratified.csv` collects per-level slopes (`slope`, per unit; plus the per-SD columns for reference); `mwinit_interaction_contrasts.csv` collects the per-non-reference-level effect-modification contrasts (γ, SE, z, raw p) with the moderator-test p / Holm p attached.
+`mwinit_stratified.csv` collects per-level slopes (`slope`, per unit; plus the per-SD columns for reference) with the stratum size `n` and the number of respondents in the stratum with any use of the purpose (`n_exposed`, composite > 0); `mwinit_interaction_contrasts.csv` collects the per-non-reference-level effect-modification contrasts (γ, SE, z, raw p) with the moderator-test p / Holm p attached.
 
 #### Scale of the forest (Figure 2)
 
@@ -391,7 +391,7 @@ Y_ucla3 ~ (A_SE_c + A_PC_c + A_DI_c) * rcs(M_c, 3) + Cmat   (gaussian GLM)
 
 3-knot RCS; default knot placement at quantiles 0.10/0.50/0.90 of M_c. `interactionRCS::intEST(var1 = A_p_c, var2 = M_c, model = m)` extracts each purpose's AME of A_p_c across M_c at:
 
-- **61-point grid** over the full moderator range (LSNS-6 subscales 0–15; age over the observed range) → `mwinit_spline_AME.csv` + figure.
+- **61-point grid** over the full moderator range (LSNS-6 subscales 0–15; age from 16, the lower bound of the JACSIS sampling frame, to the observed maximum) → `mwinit_spline_AME.csv` + figure.
 - **5 percentiles** {p10, p25, p50, p75, p90} of M_c → `mwinit_spline_AME_quantiles.csv` (→ **Sup Table 11**).
 - **Tests** — Test 1 drops both A_p × spline-basis terms (2 df; null hypothesis: the association of A_p with Y is constant across M); Test 2 drops only the nonlinear term (1 df). Sex (1-df product term from the categorical scan) is added so that each purpose has **4 tests, Holm-adjusted** (`mwinit_spline_moderation_tests.csv`, `overall_p_holm`) → **Sup Table 10**.
 
@@ -432,7 +432,7 @@ Fifteen diagnostics → `output/ai_mod/diagnosis/`. Produces `flags_<ts>.md` for
 | D12 | Exposure distribution: share of zeros per composite, any use among users / all current users; distinct values | `12_exposure_distribution.csv`, `12_exposure_values_initiators.csv` |
 | D13 | Baseline characteristics by AI-use history (Q37S1 codes; whole two-wave panel; the Table 1 rows) with SMD vs never-users → Sup Table 4 | `13_characteristics_by_ai_use_history.csv` |
 | D14 | Attrition: retained vs lost among all valid 2024 respondents on the 39 covariates (SMD); logistic retention model (OR, AUC) → Sup Table 5 | `14_attrition_{comparison,retention_model,summary}.csv` |
-| D15 | Baseline completion dates (JST) by group; overlap with the earlier analytic sample (`RI_ID_2024`) | `15_baseline_dates.csv`, `15_overlap_with_earlier_sample.csv` |
+| D15 | Baseline and follow-up completion dates (JST) by group, with the number of follow-ups completed in 2026; age range and respondents younger than 18 by group; overlap with the earlier analytic sample (`RI_ID_2024`) | `15_baseline_dates.csv`, `15_followup_dates.csv`, `15_followup_dates_by_month.csv`, `15_age_range.csv`, `15_overlap_with_earlier_sample.csv` |
 
 **Centred VIFs (D8c)**: product terms of binary moderator indicators with the centred continuous exposure inflate the uncentred VIFs (non-essential multicollinearity); after mean-centring the moderator dummies (Aiken & West 1991) the interaction VIFs are below 10 and the A_p main-effect VIFs below 3. The per-stratum slope contrasts are unaffected either way.
 

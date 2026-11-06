@@ -307,6 +307,8 @@ sup_pass <- list(
 for (S in sup_pass) { df0 <- read_in(S$stem); if (!is.null(df0)) write_table(df0, S$out) }
 for (S in list(list(stem = "12_exposure_distribution", out = "methods_exposure_distribution"), list(stem = "15_baseline_dates", out = "methods_baseline_dates"),
                list(stem = "15_overlap_with_earlier_sample", out = "methods_overlap_with_earlier_sample"), list(stem = "01_cohort_flow", out = "sup_figure1_flow_counts"),
+               list(stem = "15_followup_dates", out = "methods_followup_dates"), list(stem = "15_followup_dates_by_month", out = "methods_followup_dates_by_month"),
+               list(stem = "15_age_range", out = "methods_age_range"),
                list(stem = "04_cronbach_alpha", out = "methods_cronbach_alpha"))) { df0 <- read_in(S$stem, DIAG_IN); if (!is.null(df0)) write_table(df0, S$out) }
 
 # ============================================================
@@ -352,10 +354,10 @@ readme <- c(
   "- sup_table9_evalues.csv — E-values.",
   "- sup_table10_effect_modification_tests.csv — F tests of the moderator product terms (categorical and spline) with Holm P.",
   "- sup_table11_spline_quantiles.csv — spline marginal associations at p10/p25/p50/p75/p90.",
-  "- sup_table12_subgroup_primary.csv / _primary_contrasts / _primary_omnibus_tests — stratified slopes (per unit), γ contrasts, F tests + Holm.",
+  "- sup_table12_subgroup_primary.csv / _primary_contrasts / _primary_omnibus_tests — stratified slopes (per unit) with the number of respondents with any use of the purpose in each stratum (n_exposed), γ contrasts, F tests + Holm.",
   "- sup_table13_lsns_thresholds.csv — effect-modification sensitivity analysis 3: LSNS-6 thresholds <3, <6, <9, <12.",
   "- sup_table14_subgroup_initiators.csv / _initiators_contrasts / _initiators_omnibus_tests — effect-modification sensitivity analysis 2: users only.",
-  "- methods_*.csv — package versions, exposure distribution, baseline dates, overlap with the earlier sample, Cronbach α.",
+  "- methods_*.csv — package versions, exposure distribution, baseline and follow-up completion dates (follow-ups completed in 2026), age range and respondents younger than 18, overlap with the earlier sample, Cronbach α.",
   "",
   "## Supplementary figures",
   "- sup_figure1_flow — flow chart (drawn separately from sup_figure1_flow_counts.csv).",
